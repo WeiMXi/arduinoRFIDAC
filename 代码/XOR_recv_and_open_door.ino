@@ -171,12 +171,30 @@ void syn_time(byte *msg, DateTime now) //判断msg是否含有时间信息，若
   const byte istime[4] = { 0x1, 0x1, 0x1, 0x1 }; //判断是否为时间信息
   if (compare_bytes(msg, 0, istime, 0, 4))
   {
+    debug_time_print(now);  //debug
     Serial.println("time syn begin"); //debug
     b_i_year.byte_year[0] = msg[4];
     b_i_year.byte_year[1] = msg[5];
     rtc.adjust( DateTime(b_i_year.int_year, msg[6], msg[7], msg[8], msg[9], msg[10]) );
     Serial.println("time syn end"); //debug
+    debug_time_print(now);  //debug
   }
+}
+
+void debug_time_print(DateTime now) //显示now时间的函数debug用
+{
+  Serial.print(now.year(), DEC);
+  Serial.print('/');
+  Serial.print(now.month(), DEC);
+  Serial.print('/');
+  Serial.print(now.day(), DEC);
+  Serial.print('/');
+  Serial.print(now.hour(), DEC);
+  Serial.print(':');
+  Serial.print(now.minute(), DEC);
+  Serial.print(':');
+  Serial.print(now.second(), DEC);
+  Serial.println();
 }
 
 void setup()
