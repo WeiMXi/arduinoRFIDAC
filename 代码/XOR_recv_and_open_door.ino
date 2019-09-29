@@ -6,7 +6,7 @@
 //将int(2byte转换为字节数组)//////////////
 union byte_int_union
 {
-   int int_year; 
+   int int_year;
    byte byte_year[2];
 };
 byte_int_union b_i_year;
@@ -161,7 +161,7 @@ int uid_judge(byte* msg) //判断信息是否为UID信息，若不是则返回0�
     Serial.println("uid flase");
   }
   /////////////////////////////////////
-  
+
   return flag;
 
 }
@@ -174,7 +174,7 @@ void syn_time(byte *msg, DateTime now) //判断msg是否含有时间信息，若
     Serial.println("time syn begin"); //debug
     b_i_year.byte_year[0] = msg[4];
     b_i_year.byte_year[1] = msg[5];
-    rtc.adjust(DateTime(b_i_year.int_year, now.month(), now.day(), now.hour(), now.minute(), now.second()));
+    rtc.adjust( DateTime(b_i_year.int_year, msg[6], msg[7], msg[8], msg[9], msg[10]) );
     Serial.println("time syn end"); //debug
   }
 }
@@ -240,14 +240,14 @@ void loop()
 
   //创建时间类
   DateTime now = rtc.now();
-  
+
   //每30s刷新密钥///////////////////
   if (now.unixtime() % 30 == 0)
   {
     setkey(key, now.unixtime());
   }
   /////////////////////////////////
-  
+
   if (recv_it_and_de(msg)) //如果收到信息则将信息解密并存入 msg 中，后进入此分支
   {
     //进入UID判断部份///////////////////////////////

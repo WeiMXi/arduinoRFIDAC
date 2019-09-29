@@ -5,7 +5,7 @@
 //将int(2byte转换为字节数组)//////////////
 union byte_int_union
 {
-   int int_year; 
+   int int_year;
    byte byte_year[2];
 };
 byte_int_union b_i_year;
@@ -57,7 +57,7 @@ void setkey(byte *inputkey, int sec) //刷新密钥函数
   randomSeed(sec / 30);
   for (int i = 0; i < 32 ; i ++)
   {
-    inputkey[i] = random(0,255);   
+    inputkey[i] = random(0,255);
   }
 }
 
@@ -100,19 +100,19 @@ void debug_msg_print(byte *msg)
   Serial.println();
 }
 
-void setup() 
+void setup()
 {
   while (!Serial); // for Leonardo/Micro/Zero
   Serial.begin(57600);
-  
+
   ////初始化时钟模块////////////////////////
   //Serial.begin(57600);
-  if (! rtc.begin()) 
+  if (! rtc.begin())
   {
     Serial.println("Couldn't find RTC");
     while (1);
   }
-  if (! rtc.isrunning()) 
+  if (! rtc.isrunning())
   {
     Serial.println("RTC is NOT running!");
     // following line sets the RTC to the date & time this sketch was compiled
@@ -143,7 +143,7 @@ void setup()
   ///////////////////////////////////////
 }
 
-void loop() 
+void loop()
 {
   int i = 0;
   byte msg[NUMBER_OF_BYTES];
@@ -154,7 +154,7 @@ void loop()
     msg[i] = 0;
   }
   //////////////////////////////////////
-  
+
   //创建时间类
   DateTime now = rtc.now();
   //每30s刷新密钥///////////////////
@@ -162,7 +162,7 @@ void loop()
   {
     setkey(key,now.unixtime());
   }
-  
+
   ////如果读到卡，将获取的UID复制到msg中/////////
   if(mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial())
   {
@@ -184,14 +184,14 @@ void loop()
     /////////////////////////////////
 
     //debug_msg_print(msg);
-     
+
     send_it_en(msg); //发送含有UID的信息
-    
+
     //debug_msg_print(msg);
   }
 
   //每循环20次，同步一次时间/////////////
-  if ( num_loop == 2000)
+  if ( num_loop == 20)
   {
     //告诉收信器，这是一个时间信息////////
     for(i = 0; i < 4 ; i++)
@@ -212,14 +212,14 @@ void loop()
     ///////////////////////////////////
 
     //随机填充后续字符/////////////////
-    for(i = 10; i < NUMBER_OF_BYTES; i ++)
+    for(i = 11; i < NUMBER_OF_BYTES; i ++)
     {
       msg[i] = random(0,255);
     }
     /////////////////////////////////
 
     send_it_en(msg); //发送同步时间的信息
-    
+
     num_loop = 0; //计数归零
   }
   num_loop++;
