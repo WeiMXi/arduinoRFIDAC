@@ -5,8 +5,8 @@
 //将int(2byte转换为字节数组)//////////////
 union byte_int_union
 {
-   int int_year;
-   byte byte_year[2];
+   uint16_t int_year;
+   uint8_t  byte_year[2];
 };
 byte_int_union b_i_year;
 ////////////////////////////////////////
@@ -52,7 +52,7 @@ void new_en_de(byte *text, byte *key) //加密、解密函数
   }
 }
 
-void setkey(byte *inputkey, int sec) //刷新密钥函数
+void setkey(byte* inputkey, uint32_t sec) //刷新密钥函数
 {
   randomSeed(sec / 30);
   for (int i = 0; i < 32 ; i ++)

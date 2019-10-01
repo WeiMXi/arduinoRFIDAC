@@ -6,8 +6,8 @@
 //将int(2byte转换为字节数组)//////////////
 union byte_int_union
 {
-   int int_year;
-   byte byte_year[2];
+   uint16_t int_year;
+   uint8_t  byte_year[2];
 };
 byte_int_union b_i_year;
 ////////////////////////////////////////
@@ -62,13 +62,14 @@ void new_en_de(byte* text, byte* key) //加密、解密函数，明文或密文�
   }
 }
 
-void setkey(byte* inputkey, int sec) //刷新密钥函数
+void setkey(byte* inputkey, uint32_t sec) //刷新密钥函数
 {
   randomSeed(sec / 30);
   for (int i = 0; i < 32; i++)
   {
     inputkey[i] = random(0, 255);
   }
+  Serial.println("========set key completed==========");
 }
 
 void send_it_en(byte* it) //加密并发送，且密文会存在it中
@@ -112,7 +113,7 @@ void debug_msg_print(byte* msg) //debug使用，将以16进制显示msg信息
   Serial.print("msg:");
   for (int i = 0; i < NUMBER_OF_BYTES; i++)
   {
-    Serial.print(msg[i], HEX);
+    Serial.print(msg[i], DEC);
     Serial.print(" ");
   }
   Serial.println();
@@ -166,8 +167,9 @@ int uid_judge(byte* msg) //判断信息是否为UID信息，若不是则返回0�
 
 }
 
-void syn_time(byte *msg, DateTime now) //判断msg是否含有时间信息，若是，则同步时间
+void syn_time(byte *msg/*, DateTime now*/) //判断msg是否含有时间信息，若是，则同步时间
 {
+  DateTime now = rtc.now();
   const byte istime[4] = { 0x1, 0x1, 0x1, 0x1 }; //判断是否为时间信息
   if (compare_bytes(msg, 0, istime, 0, 4))
   {
@@ -251,11 +253,6 @@ void loop()
   int i = 0;
   byte msg[NUMBER_OF_BYTES];
 
-  for (i = 0; i < 4; i++)
-  {
-    msg[i] = 0;
-  }
-
   //创建时间类
   DateTime now = rtc.now();
 
@@ -273,7 +270,7 @@ void loop()
     //////////////////////////////////////////////
 
     //进入时间同步部份//////////////////////////////
-    syn_time(msg,now);
+    syn_time(msg/*,now*/);
     /////////////////////////////////////////////
   }
   delay(100);
