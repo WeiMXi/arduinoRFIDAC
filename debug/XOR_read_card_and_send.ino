@@ -55,10 +55,13 @@ void new_en_de(byte *text, byte *key) //加密、解密函数
 void setkey(byte* inputkey, uint32_t sec) //刷新密钥函数
 {
   randomSeed(sec / 30);
+  Serial.println(sec / 30);
   for (int i = 0; i < 32 ; i ++)
   {
     inputkey[i] = random(0,255);
   }
+  Serial.print("key:");
+  debug_32by_print(inputkey);  //debug
 }
 
 void send_it_en(byte *it) //加密并发送
@@ -89,12 +92,11 @@ void cpbyte(byte *cpin, byte *cpout, int num)
   }
 }
 
-void debug_msg_print(byte *msg)
+void debug_32by_print(byte *msg)
 {
-  Serial.print("msg:");
   for( int i = 0; i < NUMBER_OF_BYTES ; i++ )
   {
-    Serial.print(msg[i],HEX);
+    Serial.print(msg[i],DEC);
     Serial.print(" ");
   }
   Serial.println();
@@ -183,11 +185,12 @@ void loop()
     }
     /////////////////////////////////
 
-    //debug_msg_print(msg);
+    //Serial.print("demsg:");
+    //debug_32by_print(msg);
 
     send_it_en(msg); //发送含有UID的信息
-
-    //debug_msg_print(msg);
+    //Serial.print("enmsg:");
+    //debug_32by_print(msg);
   }
 
   //每循环20次，同步一次时间/////////////
@@ -217,8 +220,12 @@ void loop()
       msg[i] = random(0,255);
     }
     /////////////////////////////////
-
+    send_it_en(msg);
+    Serial.print("demsg:");
+    debug_32by_print(msg);
     send_it_en(msg); //发送同步时间的信息
+    Serial.print("enmsg:");
+    debug_32by_print(msg);
 
     num_loop = 0; //计数归零
   }

@@ -65,10 +65,13 @@ void new_en_de(byte* text, byte* key) //加密、解密函数，明文或密文�
 void setkey(byte* inputkey, uint32_t sec) //刷新密钥函数
 {
   randomSeed(sec / 30);
+  Serial.println(sec / 30);
   for (int i = 0; i < 32; i++)
   {
     inputkey[i] = random(0, 255);
   }
+  Serial.print("key:"); //debug
+  debug_32by_print(inputkey);  //debug
   Serial.println("========set key completed==========");
 }
 
@@ -91,10 +94,13 @@ int recv_it_and_de(byte* it)   //接收并解密，将明文存在msg中
   if (driver.recv(buf, &buflen)) // Non-blocking
   {
     cpbyte(it, buf, NUMBER_OF_BYTES); //复制
+    Serial.print("enmsg:"); //debug
+    debug_32by_print(buf); //debug
     new_en_de(it, key); //解密
      // Message with a good checksum received, dump it.
-    driver.printBuffer("Got:", buf, buflen); //debug
-    debug_msg_print(it); //debug
+    //driver.printBuffer("Got:", buf, buflen); //debug
+    Serial.print("demsg:"); //debug
+    debug_32by_print(it); //debug
     return 1;
   }
   return 0;
@@ -108,9 +114,9 @@ void cpbyte(byte* cpin, byte* cpout, int num) //将cpout复制到cpin字节数�
   }
 }
 
-void debug_msg_print(byte* msg) //debug使用，将以16进制显示msg信息
+void debug_32by_print(byte* msg) //debug使用，将以16进制显示msg信息
 {
-  Serial.print("msg:");
+  //Serial.print("msg:");
   for (int i = 0; i < NUMBER_OF_BYTES; i++)
   {
     Serial.print(msg[i], DEC);
@@ -167,16 +173,26 @@ int uid_judge(byte* msg) //判断信息是否为UID信息，若不是则返回0�
 
 }
 
-void syn_time(byte *msg/*, DateTime now*/) //判断msg是否含有时间信息，若是，则同步时间
+void syn_time(byte *msg, DateTime now) //判断msg是否含有时间信息，若是，则同步时间
 {
-  DateTime now = rtc.now();
+  //DateTime now = rtc.now();
   const byte istime[4] = { 0x1, 0x1, 0x1, 0x1 }; //判断是否为时间信息
-  if (compare_bytes(msg, 0, istime, 0, 4))
+  b_i_year.byte_year[0] = msg[4]; //debug
+  b_i_year.byte_year[1] = msg[5]; //debug
+  Serial.print("dt = "); //debug
+  Serial.println(
+                abs(  DateTime(b_i_year.int_year, msg[6], msg[7], msg[8], msg[9], msg[10]).unixtime() - now.unixtime()  ) < 30
+                ); //debug
+  if (  compare_bytes(msg, 0, istime, 0, 4) &&
+        (
+          abs(DateTime(b_i_year.int_year, msg[6], msg[7], msg[8], msg[9], msg[10]).unixtime() - now.unixtime()  ) < 30
+        )
+     )
   {
     debug_time_print(now);  //debug
     Serial.println("time syn begin"); //debug
-    b_i_year.byte_year[0] = msg[4];
-    b_i_year.byte_year[1] = msg[5];
+    //b_i_year.byte_year[0] = msg[4];
+    //b_i_year.byte_year[1] = msg[5];
     rtc.adjust( DateTime(b_i_year.int_year, msg[6], msg[7], msg[8], msg[9], msg[10]) );
     Serial.println("time syn end"); //debug
     debug_time_print(now);  //debug
@@ -268,9 +284,9 @@ void loop()
     //进入UID判断部份///////////////////////////////
     uid_judge(msg);
     //////////////////////////////////////////////
-
+    debug_time_print(now);  //debug
     //进入时间同步部份//////////////////////////////
-    syn_time(msg/*,now*/);
+    syn_time(msg,now);
     /////////////////////////////////////////////
   }
   delay(100);
