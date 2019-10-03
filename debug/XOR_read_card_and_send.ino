@@ -44,6 +44,10 @@ MFRC522 mfrc522(SS_PIN, RST_PIN);  // Create MFRC522 instance
 
 byte key[NUMBER_OF_BYTES]; // 加密、解密密钥
 
+///保持电源输出所需///////////////////////
+uint32_t nexttime;
+///////////////////////////////////////
+
 void new_en_de(byte *text, byte *key) //加密、解密函数
 {
   for (int i = 0; i < NUMBER_OF_BYTES; i++)
@@ -102,6 +106,20 @@ void debug_32by_print(byte *msg)
   Serial.println();
 }
 
+void keep_power()
+{
+  digitalWrite(8, LOW);
+  delay(200);
+  digitalWrite(8, HIGH);
+  //delay(500);
+
+  Serial.println("==================");
+  Serial.println("==================");
+  Serial.println("keep power finshed");
+  Serial.println("==================");
+  Serial.println("==================");
+}
+
 void setup()
 {
   while (!Serial); // for Leonardo/Micro/Zero
@@ -143,6 +161,12 @@ void setup()
   DateTime now = rtc.now();
   setkey(key,now.unixtime());
   ///////////////////////////////////////
+
+  //////////////////////////////////////
+  pinMode(8,OUTPUT);  //保持电源输出的端口
+  digitalWrite(8,HIGH); //打开上拉电阻
+  nexttime = now.unixtime();
+  /////////////////////////////////////
 }
 
 void loop()
@@ -159,6 +183,15 @@ void loop()
 
   //创建时间类
   DateTime now = rtc.now();
+
+  if ( now.unixtime() > (nexttime + 13) )
+  {
+    //nexttime = (now.unixtime() + 13); //I really don't why is bug
+    nexttime = nexttime + 13;
+    keep_power();
+    Serial.print("now the time is "); //debug
+  }
+
   //每30s刷新密钥///////////////////
   if( now.unixtime() % 30 == 0)
   {
