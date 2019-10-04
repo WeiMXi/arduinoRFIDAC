@@ -1,4 +1,3 @@
-
 #define NUMBER_OF_BYTES 32 // 加密字节数，也是密钥字节数
 
 ////////////////////////////////////////
@@ -55,7 +54,7 @@ Servo mg90s;  //舵机
 byte key[NUMBER_OF_BYTES]; // 加密、解密密钥
 
 ///保持电源输出所需///////////////////////
-uint32_t nexttime;
+unsigned long next_time;
 ///////////////////////////////////////
 
 void new_en_de(byte* text, byte* key) //加密、解密函数，明文或密文会存在text中
@@ -185,7 +184,7 @@ void syn_time(byte *msg, DateTime now) //判断msg是否含有时间信息，若
   b_i_year.byte_year[1] = msg[5]; //debug
   Serial.print("dt = "); //debug
   Serial.println(
-                abs(DateTime(b_i_year.int_year, msg[6], msg[7], msg[8], msg[9], msg[10]).unixtime() - now.unixtime()  ) < 30
+                abs(  DateTime(b_i_year.int_year, msg[6], msg[7], msg[8], msg[9], msg[10]).unixtime() - now.unixtime() )
                 ); //debug
   if (  compare_bytes(msg, 0, istime, 0, 4) &&
         (
@@ -221,23 +220,26 @@ void debug_time_print(DateTime now) //显示now时间的函数debug用
 
 void opendoor() //just open the door
 {
-  mg90s.write(80);
-  delay(3000);
-  mg90s.write(0);
+  mg90s.attach(9);//加载舵机，9脚输出控制信号
+  mg90s.write(80);//开门动作
+  delay(3000);    //保持舵机
+  mg90s.write(0); //将舵机归位
+  delay(200);     //足够的时间输出PWM波
+  mg90s.detach(); //尝试使得舵机休眠
 }
 
 void keep_power()
 {
-  digitalWrite(8, LOW);
-  delay(200);
-  digitalWrite(8, HIGH);
+  digitalWrite(8, LOW); //输出低电平
+  delay(200);           //脉冲，保持电源
+  digitalWrite(8, HIGH);//保持高电平，防止连续的低电平脉冲使得电源关闭
   //delay(500);
 
-  Serial.println("==================");
-  Serial.println("==================");
-  Serial.println("keep power finshed");
-  Serial.println("==================");
-  Serial.println("==================");
+  Serial.println("=================="); //debug
+  Serial.println("=================="); //debug
+  Serial.println("keep power finshed"); //debug
+  Serial.println("=================="); //debug
+  Serial.println("=================="); //debug
 }
 
 void setup()
@@ -278,9 +280,10 @@ void setup()
   ////////////////////////////////////////
 
   //初始化舵机/////////////////////////////
-  mg90s.attach(9);
-  mg90s.write(0);
-  pinMode(9,OUTPUT); //舵机
+  mg90s.attach(9);//9脚输出控制信号
+  mg90s.write(0); //将舵机归位
+  delay(200);     //足够的时间输出PWM波
+  mg90s.detach(); //尝试使得舵机休眠
   ///////////////////////////////////////
 
   //初始化密钥/////////////////////////////
@@ -288,10 +291,11 @@ void setup()
   setkey(key, now.unixtime());
   ///////////////////////////////////////
 
-  ///////////////////////////////////////
+  //电源维持部份///////////////////////////
   pinMode(8,OUTPUT);  //保持电源输出的端口
   digitalWrite(8,HIGH); //打开上拉电阻
-  nexttime = now.unixtime();
+  next_time = millis();
+  delay(5000);
   ///////////////////////////////////////
 }
 
@@ -303,19 +307,26 @@ void loop()
   //创建时间类
   DateTime now = rtc.now();
 
-  if ( now.unixtime() > (nexttime + 13) )
+  //电源维持部份//////////////////////////////
+  if (  millis() < 5000 )
+  {
+    next_time = millis(); //millis计数已经归零，新的循环开始了
+  }
+  if ( millis() > next_time + 10000 )
   {
     //nexttime = (now.unixtime() + 13); //I really don't why is bug
-    nexttime = nexttime + 13;
-    keep_power();
+    next_time = millis(); //下次同步时间
+    keep_power(); //输出低电平脉冲，保持电源
     Serial.print("now the time is "); //debug
-    debug_time_print(now);  //debug
+    Serial.println(millis(),DEC);  //debug
   }
+  ///////////////////////////////////////////
 
   //每30s刷新密钥///////////////////
   if (now.unixtime() % 30 == 0)
   {
     setkey(key, now.unixtime());
+    debug_time_print(now);
   }
   /////////////////////////////////
 
