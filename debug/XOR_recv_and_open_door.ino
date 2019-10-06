@@ -188,7 +188,7 @@ void syn_time(byte *msg, DateTime now) //判断msg是否含有时间信息，若
                 ); //debug
   if (  compare_bytes(msg, 0, istime, 0, 4) &&
         (
-          abs(DateTime(b_i_year.int_year, msg[6], msg[7], msg[8], msg[9], msg[10]).unixtime() - now.unixtime()  ) < 30
+          abs(  DateTime(b_i_year.int_year, msg[6], msg[7], msg[8], msg[9], msg[10]).unixtime() - now.unixtime()  ) < 20
         )
      )
   {
@@ -323,11 +323,11 @@ void loop()
   ///////////////////////////////////////////
 
   //每30s刷新密钥///////////////////
-  if (now.unixtime() % 30 == 0)
-  {
+  //just try if (now.unixtime() % 30 == 0)
+  //{
     setkey(key, now.unixtime());
     debug_time_print(now);
-  }
+  //}
   /////////////////////////////////
 
   if (recv_it_and_de(msg)) //如果收到信息则将信息解密并存入 msg 中，后进入此分支
