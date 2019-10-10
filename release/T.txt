@@ -1,0 +1,211 @@
+#define NUMBER_OF_BYTES 32 // 加密字节数，也是密钥字节数
+#define time_LED_on 8
+#define time_LED_down 9
+#define button_state 10
+////////////////////////////////////////
+
+////////////////////////////////////////
+int time_state = 0;
+////////////////////////////////////////
+
+//将int(2byte转换为字节数组)//////////////
+union byte_int_union
+{
+   uint16_t int_year;
+   uint8_t  byte_year[2];
+};
+byte_int_union b_i_year;
+////////////////////////////////////////
+
+
+///////// DS1307时钟模块所需  ////////////
+#include "RTClib.h"
+
+RTC_DS1307 rtc; //创建一个RTC_DS1307对象
+////////////////////////////////////////
+
+////ASK无线模块所需//////////////////////
+#include <RH_ASK.h>
+#include <SPI.h> // Not actually used but needed to compile
+
+RH_ASK driver(2000, 5, 6, 7); //依次为接收，发送，ptt端
+////////////////////////////////////////
+
+///舵机、RFID模块////////////////////////////
+#include <SPI.h>
+////////////////////////////////////////////
+
+byte key[NUMBER_OF_BYTES]; // 加密、解密密钥
+
+
+void new_en_de(byte* text, byte* key) //加密、解密函数，明文或密文会存在text中
+{
+  for (int i = 0; i < NUMBER_OF_BYTES; i++)
+  {
+    text[i] = key[i] ^ text[i];
+  }
+}
+
+void setkey(byte* inputkey, uint32_t sec) //刷新密钥函数
+{
+  randomSeed(sec / 30);
+  for (int i = 0; i < 32; i++)
+  {
+    inputkey[i] = random(0, 255);
+  }
+}
+
+void send_it_en(byte* it) //加密并发送，且密文会存在it中
+{
+  new_en_de(it, key); //加密
+  driver.send((byte*)it, strlen(it)); //发送
+  driver.waitPacketSent();  //等待发送完成
+}
+
+int recv_it_and_de(byte* it)   //接收并解密，将明文存在msg中
+{
+  byte buf[NUMBER_OF_BYTES]; //是否可省
+  byte buflen = sizeof(buf);  //是否可省
+  if (driver.recv(buf, &buflen)) // Non-blocking
+  {
+    cpbyte(it, buf, NUMBER_OF_BYTES); //复制
+    new_en_de(it, key); //解密
+    return 1;
+  }
+  return 0;
+}
+
+void cpbyte(byte* cpin, byte* cpout, int num) //将cpout复制到cpin字节数组中，需要输入num字节数
+{
+  for (int i = 0; i < num; i++)
+  {
+    cpin[i] = cpout[i];
+  }
+}
+
+int compare_bytes(const byte* a,const int start_a,const byte* b,const int start_b,const int num) //比较a,b两个字节数组，输入a,b,开始比较的位置与比较的长度
+{
+  const int maxi = num + start_a;
+  int i = start_a;
+  int j = start_b;
+  for (; i < maxi;)
+  {
+    if (a[i] != b[j])
+    {
+      return 0;
+    }
+    i++;
+    j++;
+  }
+  return 1;
+}
+
+int syn_time(byte *msg, DateTime now) //判断msg是否含有时间信息，若是，则同步时间
+{
+  //DateTime now = rtc.now();
+  const byte istime[4] = { 0x1, 0x1, 0x1, 0x1 }; //判断是否为时间信息
+  b_i_year.byte_year[0] = msg[4]; 
+  b_i_year.byte_year[1] = msg[5]; 
+  if (  compare_bytes(msg, 0, istime, 0, 4) &&
+        (
+          abs(  DateTime(b_i_year.int_year, msg[6], msg[7], msg[8], msg[9], msg[10]).unixtime() - now.unixtime()  ) < 20
+        )
+     )
+  {
+    rtc.adjust( DateTime(b_i_year.int_year, msg[6], msg[7], msg[8], msg[9], msg[10]) );
+    return 1;
+  }
+  return 0;
+}
+
+
+void setup()
+{
+  ////初始化时钟模块////////////////////////
+  //Serial.begin(57600);
+  if (!rtc.begin())
+  {
+    //Serial.println("Couldn't find RTC");
+    while (1);
+  }
+  if (!rtc.isrunning())
+  {
+    //Serial.println("RTC is NOT running!");
+  }
+  ///////////////////////////////////////
+
+  //初始化ASK模块//////////////////////////
+  if (!driver.init())
+    //Serial.println("init failed");
+  ////////////////////////////////////////
+
+
+  //初始化密钥/////////////////////////////
+  DateTime now = rtc.now();
+  setkey(key, now.unixtime());
+  ///////////////////////////////////////
+
+//初始化状态灯/////////////////////////////
+  pinMode(time_LED_on,OUTPUT);
+  digitalWrite(time_LED_on,LOW);
+  pinMode(time_LED_down,OUTPUT);
+  digitalWrite(time_LED_down,HIGH); 
+  pinMode(button_state,INPUT);
+  //////////////////////////////////////////
+}
+
+void loop()
+{
+  int i = 0;
+  byte msg[NUMBER_OF_BYTES] ;
+
+  //创建时间类
+  DateTime now = rtc.now();
+
+  setkey(key, now.unixtime());  //刷新密钥
+
+  if (recv_it_and_de(msg)) //如果收到信息则将信息解密并存入 msg 中，后进入此分支
+  {
+    //进入时间同步部份//////////////////////////////
+    if( syn_time(msg,now) )
+    {
+        time_state = 1;
+    }
+    /////////////////////////////////////////////
+  }
+    //刷新灯状态
+      digitalWrite(time_LED_down, (!time_state) );
+      digitalWrite(time_LED_on, time_state);
+
+  if ( time_state  && (! digitalRead(button_state) ) )
+  {
+        //将要发送的信息
+        byte msg[NUMBER_OF_BYTES] = { 0x0, 0x0, 0x0 , 0x0, 0x0, 0x0, 0x0 , 0x0,
+                                    0x0, 0x0, 0x0 , 0x0, 0x0, 0x0, 0x0 , 0x0,
+                                    0x0, 0x0, 0x0 , 0x0, 0x0, 0x0, 0x0 , 0x0,
+                                    0x0, 0x0, 0x0 , 0x0, 0x0, 0x0, 0x0 , 0x0};
+        
+        //指定闪烁端口///////////////////////////////
+        if( time_state )
+        {
+            int pin = time_LED_on;
+        }
+        else
+        {
+            int pin = time_LED_down;
+        }
+        /////////////////////////////////////////////
+
+        //闪烁并发送信息////////////////////
+        digitalWrite(pin, LOW);
+        send_it_en(msg);
+        digitalWrite(pin, HIGH);
+        delay(100);
+        digitalWrite(pin, LOW);
+        delay(100);
+        digitalWrite(pin, HIGH);
+        delay(100);
+        //////////////////////////////////
+  }
+  delay(100);
+}
